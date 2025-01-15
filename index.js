@@ -70,20 +70,27 @@ async function run() {
 
 
 
+// ---------------- ALL GET API HERE ------------------//
 
-
-
-
-
-// get the user roll
-app.get('/user/role/:email', async(req,res)=>{
+  // get specific employee work data
+  app.get("/worksheet/:email", async (req,res)=>{
     const email = req.params.email;
-    const query = {userEmail:email}
-    const result = await usersCollection.findOne(query,{projection:{userRole:1,
-    _id:0,
-   }});
-    res.send(result?.userRole)
-})
+    const filter ={employeeEmail:email};
+    const result = await submitedWorkCollection.find(filter).toArray();
+    res.send(result);
+  })
+
+
+
+  // get the user roll
+  app.get('/user/role/:email', async(req,res)=>{
+      const email = req.params.email;
+      const query = {userEmail:email}
+      const result = await usersCollection.findOne(query,{projection:{userRole:1,
+      _id:0,
+    }});
+      res.send(result?.userRole)
+  })
 
 
 
@@ -93,29 +100,28 @@ app.get('/user/role/:email', async(req,res)=>{
 
 
 
+// ---------------- ALL POST API HERE ------------------//
 
-
-
-    // employee work send to database by employee
-    app.post('/daily-work', async(req,res)=>{
-      const submitedData = req.body;
-      const query = {workedDate:submitedData?.workedDate}
-      const isExist = await submitedWorkCollection.findOne(query);
-      if(isExist) return res.status(409).send({message:"You Cannot Submit Work Twice a Same Date"})
-      const result = await submitedWorkCollection.insertOne(submitedData)
-      res.send(result)
-    })
-     
-    // user info save to database
-    app.post('/users', async(req,res)=>{
-      const userInfo = req.body;
-      const query = {userEmail:userInfo?.userEmail}
-      const isExist = await usersCollection.findOne(query);
-      if(isExist) return res.status(409).send({message:"user info conflict"})
-      const result = await usersCollection.insertOne(userInfo);
-      res.send(result)
-     
-    })
+  // employee work send to database by employee
+  app.post('/daily-work', async(req,res)=>{
+    const submitedData = req.body;
+    const query = {workedDate:submitedData?.workedDate}
+    const isExist = await submitedWorkCollection.findOne(query);
+    if(isExist) return res.status(409).send({message:"You Cannot Submit Work Twice a Same Date"})
+    const result = await submitedWorkCollection.insertOne(submitedData)
+    res.send(result)
+  })
+    
+  // user info save to database
+  app.post('/users', async(req,res)=>{
+    const userInfo = req.body;
+    const query = {userEmail:userInfo?.userEmail}
+    const isExist = await usersCollection.findOne(query);
+    if(isExist) return res.status(409).send({message:"user info conflict"})
+    const result = await usersCollection.insertOne(userInfo);
+    res.send(result)
+    
+  })
 
 
 
