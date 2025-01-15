@@ -66,9 +66,38 @@ async function run() {
      const usersCollection = database.collection('users')
 
 
+
+
+
+
+
+
+
+// get the user roll
+app.get('/user/role/:email', async(req,res)=>{
+    const email = req.params.email;
+    const query = {userEmail:email}
+    const result = await usersCollection.findOne(query,{projection:{userRole:1,
+    _id:0,
+   }});
+    res.send(result?.userRole)
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
      
     // user info save to database
-    app.post('/users',verifyToken, async(req,res)=>{
+    app.post('/users', async(req,res)=>{
       const userInfo = req.body;
       const query = {userEmail:userInfo?.userEmail}
       const isExist = await usersCollection.findOne(query);
@@ -81,6 +110,11 @@ async function run() {
 
 
 
+
+
+
+
+    
 
 
 
