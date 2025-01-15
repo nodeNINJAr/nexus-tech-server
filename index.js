@@ -5,12 +5,13 @@ const port = process.env.PORT || 5000;
 const app = express();
 const morgan = require('morgan');
 const { MongoClient, ServerApiVersion } = require('mongodb');
-
+const jwt = require('jsonwebtoken')
 
 // middleware
 app.use(cors(
   { 
-    origin:['http://localhost:5173']
+    origin:['http://localhost:5173'],
+    credentials:true,
    }
 ));
 app.use(express.json());
@@ -57,6 +58,25 @@ async function run() {
 
 
 
+
+// jwt token setup sign in to jwt
+app.post('/login', async(req,res)=>{
+   const email = req.body;
+  // sign in to jwt
+  const token = jwt.sign(email,process.env.JWT_SECRET_KEY,{expiresIn:"1d"});
+  // set token to cookie
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+  })
+  .send({message:"token is set on browser cookie"})
+})
+// token remove after user logout from site
+app.post('/logout', (req,res)=>{
+  res.clearCookie('token');
+  res.send({message:'token removed succesfully'})
+})
 
 
 
