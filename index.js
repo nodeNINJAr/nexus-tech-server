@@ -63,7 +63,9 @@ async function run() {
 //   main code
     // database collection
      const database = client.db('nexusTech')
-     const usersCollection = database.collection('users')
+     const usersCollection = database.collection('users');
+     const submitedWorkCollection = database.collection('submitedWork')
+
 
 
 
@@ -94,7 +96,15 @@ app.get('/user/role/:email', async(req,res)=>{
 
 
 
-
+    // employee work send to database by employee
+    app.post('/daily-work', async(req,res)=>{
+      const submitedData = req.body;
+      const query = {workedDate:submitedData?.workedDate}
+      const isExist = await submitedWorkCollection.findOne(query);
+      if(isExist) return res.status(409).send({message:"You Cannot Submit Work Twice a Same Date"})
+      const result = await submitedWorkCollection.insertOne(submitedData)
+      res.send(result)
+    })
      
     // user info save to database
     app.post('/users', async(req,res)=>{
