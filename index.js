@@ -5,7 +5,8 @@ const port = process.env.PORT || 5000;
 const app = express();
 const morgan = require('morgan');
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const jwt = require('jsonwebtoken')
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser')
 
 // middleware
 app.use(cors(
@@ -14,9 +15,32 @@ app.use(cors(
     credentials:true,
    }
 ));
+app.use(cookieParser());
 app.use(express.json());
-app.use(morgan('dev'))
+app.use(morgan('dev'));
 
+
+
+// middleware for user verify
+const verifyToken = (req,res, next)=>{
+  const token = req?.cookies?.token;
+  console.log(token);
+  // validate if token is not available
+  if(!token){
+    return res.status(401).json({message:'Access denied. No token provided.'})
+  }
+
+  // verify if token have than sent,if not than err
+  try{
+    const decoded = jwt.verify(token,process.env.JWT_SECRET_KEY);
+    req.user = decoded;
+    next()
+  }
+  catch(err){
+    return res.status(401).json(({ message: 'Invalid or expired token.' }));
+  }
+
+}
 
 
 
@@ -42,15 +66,16 @@ async function run() {
      const usersCollection = database.collection('users')
 
 
-
+     
     // user info save to database
-    app.post('/users', async(req,res)=>{
+    app.post('/users',verifyToken, async(req,res)=>{
       const userInfo = req.body;
       const query = {userEmail:userInfo?.userEmail}
       const isExist = await usersCollection.findOne(query);
       if(isExist) return res.status(409).send({message:"user info conflict"})
       const result = await usersCollection.insertOne(userInfo);
       res.send(result)
+     
     })
 
 
