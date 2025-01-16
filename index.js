@@ -96,6 +96,11 @@ async function run() {
     res.send(result)
   })
 
+  // get all employee submited work
+  app.get('/submited-work', async(req, res)=>{
+      const result = await submitedWorkCollection.find().toArray();
+      res.send(result);
+  } )
 
 
 
@@ -104,7 +109,7 @@ async function run() {
   // employee work send to database by employee
   app.post('/daily-work', async(req,res)=>{
     const submitedData = req.body;
-    const query = {workedDate:submitedData?.workedDate}
+    const query = {workedDate:submitedData?.workedDate, employeeEmail:submitedData?.employeeEmail}
     const isExist = await submitedWorkCollection.findOne(query);
     if(isExist) return res.status(409).send({message:"You Cannot Submit Work Twice a Same Date"})
     const result = await submitedWorkCollection.insertOne(submitedData)
@@ -144,6 +149,19 @@ app.put('/worksheet/:id', async (req,res)=>{
   const result = await submitedWorkCollection.updateOne(filter,updatedInfo,options);
   res.send(result)
 
+})
+
+// employee verified status toggle by user
+app.patch('/employee-verify/:id', async(req,res)=>{
+  const id = req.params.id;
+  const query = {_id:new ObjectId(id)};
+  const verified = {
+     $set:{
+       verified:true,
+     }
+  }
+  const result = await usersCollection.updateOne(query, verified)
+  res.send(result)
 })
 
 
