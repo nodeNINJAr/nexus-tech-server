@@ -89,7 +89,12 @@ async function run() {
     }});
       res.send(result?.userRole)
   })
-
+  // get all employee data
+  app.get('/employee-list', async(req,res)=>{
+    const filter ={userRole:"employee"};
+    const result = await usersCollection.find(filter).toArray();
+    res.send(result)
+  })
 
 
 
