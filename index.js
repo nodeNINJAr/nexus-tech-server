@@ -98,7 +98,31 @@ async function run() {
 
   // get all employee submited work
   app.get('/submited-work', async(req, res)=>{
-      const result = await submitedWorkCollection.find().toArray();
+      const queryData = req.query;
+     const query = {};
+
+    //  filtered by date
+     if (queryData?.month) {
+      const month = parseInt(queryData.month, 10); // Ensure month is a number
+      query.$expr = { $eq: [{ $month:{ $toDate:"$workedDate"} }, month] };//date mustbe converted todate is date is string
+    }
+    // name filtering
+    if (queryData?.name) {
+      query.employeeName = queryData.name;
+    }
+    // 
+    const result = await submitedWorkCollection.aggregate([
+       {$match:query},
+       {
+        $group:{
+          _id:null,
+          totalWorkedHour:{$sum:"$workedHour"},
+          filteredWork:{$push:"$$ROOT"}
+        },
+       }
+    ]).toArray();
+    // const userN
+
       res.send(result);
   } )
 
