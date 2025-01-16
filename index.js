@@ -4,7 +4,7 @@ const cors = require('cors');
 const port = process.env.PORT || 5000;
 const app = express();
 const morgan = require('morgan');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser')
 
@@ -80,8 +80,6 @@ async function run() {
     res.send(result);
   })
 
-
-
   // get the user roll
   app.get('/user/role/:email', async(req,res)=>{
       const email = req.params.email;
@@ -91,10 +89,6 @@ async function run() {
     }});
       res.send(result?.userRole)
   })
-
-
-
-
 
 
 
@@ -125,7 +119,40 @@ async function run() {
 
 
 
+// ---------------- ALL UPDATE API HERE ------------------//
 
+// employee work update by own
+app.put('/worksheet/:id', async (req,res)=>{
+  const id = req.params.id;
+  const filter = {_id: new ObjectId(id)};
+  const info = req.body;
+  const options = {upsert: true };
+  const updatedInfo = {
+      $set:{
+        employeeEmail: info?.employeeEmail,
+        taskName: info?.taskName,
+        workedHour: info?.workedHour,
+        workedDate: info?.workedDate,
+      }
+  };
+
+  const result = await submitedWorkCollection.updateOne(filter,updatedInfo,options);
+  res.send(result)
+
+})
+
+
+
+
+// ---------------- ALL DELETE API HERE ------------------//
+
+// employee work deleted by own
+app.delete('/worksheet/:id', async(req,res)=>{
+  const id = req.params.id;
+  const query = {_id: new ObjectId(id) };
+  const result = await submitedWorkCollection.deleteOne(query);
+  res.send(result)
+})
 
 
 
