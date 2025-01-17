@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser')
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 // middleware
 app.use(cors(
@@ -64,7 +65,9 @@ async function run() {
     // database collection
      const database = client.db('nexusTech')
      const usersCollection = database.collection('users');
-     const submitedWorkCollection = database.collection('submitedWork')
+     const submitedWorkCollection = database.collection('submitedWork');
+     const paymentRequestsCollection = database.collection('payRequests');
+     const paymentHistoryCollection = database.collection('paymentHistory')
 
 
 
@@ -138,6 +141,12 @@ async function run() {
     ]).toArray();
       res.send(result);
   } )
+  // get all pay request
+  app.get("/payment-requests", async (req,res)=>{
+    const result = await paymentRequestsCollection.find().toArray();
+    res.send(result)
+  })
+ 
 
 
 
@@ -163,6 +172,69 @@ async function run() {
     res.send(result)
     
   })
+
+
+//  pay request by hr
+  app.post('/payment/request', async (req, res) => { 
+    // 
+    try { 
+    const { employeeId, salary, month, year, hrEmail } = req.body; 
+    const paymentRequest = { 
+            employeeId,
+            salary,
+            month,
+            year, 
+            hrEmail, 
+            requestDate: new Date().toLocaleDateString(), 
+            status: 'pending' 
+           }; 
+      const query = {employeeId, month, year}
+      const isExist = await paymentRequestsCollection.findOne(query);
+      if(isExist) return res.status(409).send({message:"Conflict"})
+      const result = await paymentRequestsCollection.insertOne(paymentRequest); 
+      res.json({ message: 'Payment request created', paymentRequest: result}); 
+    }
+       catch (error) { 
+        res.status(500).json({ error: 'Internal Server Error' });
+       }
+      
+      });
+      
+  //  pay approve by admin
+   app.post('/approve-pay-request', async (req, res) => { 
+      try { 
+      const {paymentRequestId} = req.body; 
+      const paymentRequest = await paymentRequestsCollection.findOne({ _id: new ObjectId(paymentRequestId)}); 
+      if (!paymentRequest) { 
+          return res.status(404).json({ error: 'Payment request not found' });
+          } 
+      if (paymentRequest.status === 'approved'){
+        return res.status(409).json({ message: 'Payment request already approved' });
+      }
+     const paymentIntent = await stripe.paymentIntents.create({ 
+          amount: paymentRequest.salary * 100,
+          // Stripe works in cents
+          currency: 'usd',
+          payment_method_types: ['card'],
+          });
+        const updatedPaymentRequest = await paymentRequestsCollection.findOneAndUpdate( { _id: new ObjectId(paymentRequestId) }, { $set: { status: 'approved' } }, { returnOriginal: false } );
+        const paymentHistory = {
+            employeeId: paymentRequest.employeeId,
+            salary: paymentRequest.salary,
+            month: paymentRequest.month, 
+            year: paymentRequest.year, 
+            hrEmail: paymentRequest.hrEmail,
+            paymentIntentId: paymentIntent.id,
+            status: 'paid',
+            paidAt: new Date().toLocaleDateString()
+        };
+        await paymentHistoryCollection.insertOne(paymentHistory); 
+        res.json({ clientSecret: paymentIntent.client_secret, paymentRequest: updatedPaymentRequest.value }); }
+      catch (error) { 
+        res.status(500).json({ error: 'Internal Server Error' }); 
+      } 
+    });
+
 
 
 
