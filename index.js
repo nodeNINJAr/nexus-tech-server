@@ -90,7 +90,17 @@ async function run() {
   // all user data except admin
   app.get('/users', async(req,res)=>{
     // get data by different value
-    const filter ={userRole:{$ne: "admin"}};
+    const filter ={
+      // matching
+      userRole:{$in:["employee" , "hr"]},
+      // additional condition
+      $or :[
+        {userRole:"employee", isVerified:true},
+        {userRole:"hr"}
+      ]
+    
+    };
+    // 
     const result = await usersCollection.find(filter).toArray();
     res.send(result)
   })
@@ -184,7 +194,7 @@ app.patch('/employee-verify/:id', async(req,res)=>{
   const query = {_id:new ObjectId(id)};
   const verified = {
      $set:{
-       verified:true,
+       isVerified:true,
      }
   }
   const result = await usersCollection.updateOne(query, verified)
