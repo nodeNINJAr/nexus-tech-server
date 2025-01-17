@@ -191,6 +191,34 @@ app.patch('/employee-verify/:id', async(req,res)=>{
   res.send(result)
 })
 
+// employee fired by admin
+app.patch('/make-hr/:id', async(req,res)=>{
+  const id= req.params.id;
+  const query = {_id:new ObjectId(id)};
+  const userRole = {userRole:"hr",_id:new ObjectId(id)}
+ //  find existing data
+  const isExist = await usersCollection.findOne(userRole);
+  if(isExist){
+    return res.status(409).send({message:"This employee is already HR."}) 
+  }
+// make hr
+  const makeHr = {
+      $set:{userRole:"hr"}
+  }
+  const result = await usersCollection.updateOne(query, makeHr);
+  res.send(result)
+})
+
+// employee fired by admin
+app.patch('/fired/:id', async(req,res)=>{
+  const id= req.params.id;
+  const query = {_id:new ObjectId(id)};
+  const fired = {
+      $set:{fired:true}
+  }
+  const result = await usersCollection.updateOne(query,fired);
+  res.send(result)
+})
 
 
 
