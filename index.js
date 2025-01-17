@@ -146,7 +146,14 @@ async function run() {
     const result = await paymentRequestsCollection.find().toArray();
     res.send(result)
   })
- 
+ app.get('/payment-history/:email', async (req,res)=>{
+    const email= req.params.email;
+    const filter = {userEmail:email}
+    const user = await usersCollection.findOne(filter);
+    const result = await paymentHistoryCollection.find({employeeId: user?._id.toString()}).sort({_id:-1}).toArray();
+    res.send(result);
+    
+ })
 
 
 
@@ -178,8 +185,9 @@ async function run() {
   app.post('/payment/request', async (req, res) => { 
     // 
     try { 
-    const { employeeId, salary, month, year, hrEmail } = req.body; 
+    const { employeeId,employeeName, salary, month, year, hrEmail } = req.body; 
     const paymentRequest = { 
+            employeeName,
             employeeId,
             salary,
             month,
