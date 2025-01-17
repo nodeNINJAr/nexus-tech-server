@@ -72,14 +72,6 @@ async function run() {
 
 // ---------------- ALL GET API HERE ------------------//
 
-  // get specific employee work data
-  app.get("/worksheet/:email", async (req,res)=>{
-    const email = req.params.email;
-    const filter ={employeeEmail:email};
-    const result = await submitedWorkCollection.find(filter).toArray();
-    res.send(result);
-  })
-
   // get the user roll
   app.get('/user/role/:email', async(req,res)=>{
       const email = req.params.email;
@@ -95,7 +87,20 @@ async function run() {
     const result = await usersCollection.find(filter).toArray();
     res.send(result)
   })
-
+  // all user data except admin
+  app.get('/users', async(req,res)=>{
+    // get data by different value
+    const filter ={userRole:{$ne: "admin"}};
+    const result = await usersCollection.find(filter).toArray();
+    res.send(result)
+  })
+  // get specific employee work data
+  app.get("/worksheet/:email", async (req,res)=>{
+    const email = req.params.email;
+    const filter ={employeeEmail:email};
+    const result = await submitedWorkCollection.find(filter).toArray();
+    res.send(result);
+  })
   // get all employee submited work
   app.get('/submited-work', async(req, res)=>{
       const queryData = req.query;
@@ -121,8 +126,6 @@ async function run() {
         },
        }
     ]).toArray();
-    // const userN
-
       res.send(result);
   } )
 
