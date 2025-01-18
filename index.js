@@ -118,7 +118,6 @@ async function run() {
   app.get('/submited-work', async(req, res)=>{
       const queryData = req.query;
      const query = {};
-
     //  filtered by date
      if (queryData?.month) {
       const month = parseInt(queryData.month, 10); // Ensure month is a number
@@ -146,14 +145,61 @@ async function run() {
     const result = await paymentRequestsCollection.find().toArray();
     res.send(result)
   })
- app.get('/payment-history/:email', async (req,res)=>{
-    const email= req.params.email;
-    const filter = {userEmail:email}
-    const user = await usersCollection.findOne(filter);
-    const result = await paymentHistoryCollection.find({employeeId: user?._id.toString()}).sort({_id:-1}).toArray();
+// get payment history by different slug
+app.get('/payment-history/:slug', async (req, res) => {
+  const monthMap = {
+    January: 1,
+    February: 2,
+    March: 3,
+    April: 4,
+    May: 5,
+    June: 6,
+    July: 7,
+    August: 8,
+    September: 9,
+    October: 10,
+    November: 11,
+    December: 12,
+  };
+
+  try {
+    const slug = req.params.slug;
+    let query = {};
+    // Default sort: descending by _id
+    let sort = { _id:-1 };
+
+    // Check if slug contains email
+    if (slug.includes('@')) {
+      const user = await usersCollection.findOne({ userEmail: slug });
+      if (!user) {
+        return res.status(404).send({ error: 'User not found by email' });
+      }
+      query.employeeId = user._id.toString();
+    } else {
+      query.employeeId = slug;
+      sort = {}; 
+    }
+    // Fetch payment history
+    const result = await paymentHistoryCollection.find(query).sort(sort).toArray();
+    // Custom sort if the request is by employee ID
+    if (!slug.includes('@')) {
+      result.sort((a, b) =>{
+        // check if same year or not
+         if(a.year !== b.year){
+          return b.year - a.year;
+         };
+        //  sork by month
+         return monthMap[a.month] - monthMap[b.month];
+      })
+    }
+  //  
     res.send(result);
-    
- })
+  } catch (error) {
+    res.status(500).send({ error: 'An error occurred while fetching payment history' });
+  }
+});
+
+
 
 
 
@@ -198,9 +244,9 @@ async function run() {
            }; 
       const query = {employeeId, month, year}
       const isExist = await paymentRequestsCollection.findOne(query);
-      if(isExist) return res.status(409).send({message:"Conflict"})
+      if(isExist) return res.status(409).send({message:`Pay request for ${month}, ${year} has already been submitted.`})
       const result = await paymentRequestsCollection.insertOne(paymentRequest); 
-      res.json({ message: 'Payment request created', paymentRequest: result}); 
+      res.json({ message:`Pay request for ${employeeName} has been successfully submitted for ${month} ${year}.`, paymentRequest: result}); 
     }
        catch (error) { 
         res.status(500).json({ error: 'Internal Server Error' });
