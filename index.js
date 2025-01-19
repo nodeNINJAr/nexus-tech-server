@@ -12,7 +12,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET);
 // middleware
 app.use(cors(
   { 
-    origin:['http://localhost:5173'],
+    origin:['http://localhost:5173','https://nexustech-b3673.web.app','https://nexustech-b3673.firebaseapp.com'],
     credentials:true,
    }
 ));
@@ -61,7 +61,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 //   main code
     // database collection
      const database = client.db('nexusTech')
@@ -263,7 +263,7 @@ async function run() {
   });
 
   // 
-  app.get("/admin-stats",verifyToken,verifyAdmin, async(req,res)=>{
+  app.get("/admin-stats",verifyToken, async(req,res)=>{
       // 
       const totalUsers= await usersCollection.estimatedDocumentCount();
       // calculate total salary
@@ -296,7 +296,7 @@ async function run() {
   })
 
   //get all contact message from users colection
-  app.get('/contacts',verifyToken,verifyAdmin, async(req,res)=>{
+  app.get('/contacts',verifyToken, async(req,res)=>{
     const result = await contactMessageCollection.find().toArray();
     res.send(result);
   })
