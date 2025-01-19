@@ -107,6 +107,15 @@ async function run() {
     const result = await usersCollection.find(filter).toArray();
     res.send(result)
   })
+  // 
+
+    // all user data 
+    app.get('/all-users/:email', async(req,res)=>{
+      const email= req.params.email;
+      // 
+      const result = await usersCollection.findOne({userEmail:email});
+      res.send(result)
+    })
   // get specific employee work data
   app.get("/worksheet/:email", async (req,res)=>{
     const email = req.params.email;
@@ -140,11 +149,18 @@ async function run() {
     ]).toArray();
       res.send(result);
   } )
-  // get all pay request
-  app.get("/payment-requests", async (req,res)=>{
-    const result = await paymentRequestsCollection.find().toArray();
-    res.send(result)
-  })
+
+
+  app.get("/payment-requests", async (req, res) => {
+    // 
+     const result = await paymentRequestsCollection.find().toArray();
+     res.send(result)
+  });
+  
+ 
+  
+
+  
 // get payment history by different slug
 app.get('/payment-history/:slug', async (req, res) => {
   const monthMap = {
@@ -271,7 +287,7 @@ app.get('/payment-history/:slug', async (req, res) => {
           currency: 'usd',
           payment_method_types: ['card'],
           });
-        const updatedPaymentRequest = await paymentRequestsCollection.findOneAndUpdate( { _id: new ObjectId(paymentRequestId) }, { $set: { status: 'approved' } }, { returnOriginal: false } );
+         await paymentRequestsCollection.findOneAndUpdate( { _id: new ObjectId(paymentRequestId) }, { $set: { status: 'approved' , paidAt: new Date().toLocaleDateString()} }, { returnOriginal: false } );
         const paymentHistory = {
             employeeId: paymentRequest.employeeId,
             salary: paymentRequest.salary,
@@ -283,7 +299,9 @@ app.get('/payment-history/:slug', async (req, res) => {
             paidAt: new Date().toLocaleDateString()
         };
         await paymentHistoryCollection.insertOne(paymentHistory); 
-        res.json({ clientSecret: paymentIntent.client_secret, paymentRequest: updatedPaymentRequest.value }); }
+        // clientSecret: paymentIntent.client_secret,
+ 
+        res.json({ status: 'paid',}); }
       catch (error) { 
         res.status(500).json({ error: 'Internal Server Error' }); 
       } 
@@ -355,7 +373,21 @@ app.patch('/fired/:id', async(req,res)=>{
   const result = await usersCollection.updateOne(query,fired);
   res.send(result)
 })
-
+// salary update by admin
+app.patch("/pay/salary-update", async(req,res)=>{
+    const {_id,currentSalary,newSalary} = req.body;
+    if(newSalary <= currentSalary){
+      return res.status(400).send({message:"New Salary will be bigger than current Value"})
+    }
+    const query = {_id:new ObjectId(_id)};
+    const salaryInfo = {
+       $set:{
+          salary:parseInt(newSalary)
+       }
+    };
+    const result = await usersCollection.findOneAndUpdate(query,salaryInfo);
+    res.send(result);
+})
 
 
 // ---------------- ALL DELETE API HERE ------------------//
