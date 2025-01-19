@@ -69,6 +69,7 @@ async function run() {
      const submitedWorkCollection = database.collection('submitedWork');
      const paymentRequestsCollection = database.collection('payRequests');
      const paymentHistoryCollection = database.collection('paymentHistory')
+     const contactMessageCollection = database.collection('AllMessage')
 
   // verify token for employee
   const verifyEmployee = async(req,res, next)=>{
@@ -199,67 +200,106 @@ async function run() {
       res.send(result);
   } )
 
-// get all payment request on admin
-  app.get("/payment-requests",verifyToken,verifyAdmin, async (req, res) => {
-    // 
-     const result = await paymentRequestsCollection.find().toArray();
-     res.send(result)
-  });
+  // get all payment request on admin
+    app.get("/payment-requests",verifyToken,verifyAdmin, async (req, res) => {
+      // 
+      const result = await paymentRequestsCollection.find().toArray();
+      res.send(result)
+    });
+    
   
- 
-// get payment history by different slug this get by hr and employee
-app.get('/payment-history/:slug',verifyToken, async (req, res) => {
-  const monthMap = {
-    January: 1,
-    February: 2,
-    March: 3,
-    April: 4,
-    May: 5,
-    June: 6,
-    July: 7,
-    August: 8,
-    September: 9,
-    October: 10,
-    November: 11,
-    December: 12,
-  };
+  // get payment history by different slug this get by hr and employee
+  app.get('/payment-history/:slug',verifyToken, async (req, res) => {
+    const monthMap = {
+      January: 1,
+      February: 2,
+      March: 3,
+      April: 4,
+      May: 5,
+      June: 6,
+      July: 7,
+      August: 8,
+      September: 9,
+      October: 10,
+      November: 11,
+      December: 12,
+    };
 
-  try {
-    const slug = req.params.slug;
-    let query = {};
-    // Default sort: descending by _id
-    let sort = { _id:-1 };
+    try {
+      const slug = req.params.slug;
+      let query = {};
+      // Default sort: descending by _id
+      let sort = { _id:-1 };
 
-    // Check if slug contains email
-    if (slug.includes('@')) {
-      const user = await usersCollection.findOne({ userEmail: slug });
-      if (!user) {
-        return res.status(404).send({ error: 'User not found by email' });
+      // Check if slug contains email
+      if (slug.includes('@')) {
+        const user = await usersCollection.findOne({ userEmail: slug });
+        if (!user) {
+          return res.status(404).send({ error: 'User not found by email' });
+        }
+        query.employeeId = user._id.toString();
+      } else {
+        query.employeeId = slug;
+        sort = {}; 
       }
-      query.employeeId = user._id.toString();
-    } else {
-      query.employeeId = slug;
-      sort = {}; 
+      // Fetch payment history
+      const result = await paymentHistoryCollection.find(query).sort(sort).toArray();
+      // Custom sort if the request is by employee ID
+      if (!slug.includes('@')) {
+        result.sort((a, b) =>{
+          // check if same year or not
+          if(a.year !== b.year){
+            return b.year - a.year;
+          };
+          //  sork by month
+          return monthMap[a.month] - monthMap[b.month];
+        })
+      }
+    //  
+      res.send(result);
+    } catch (error) {
+      res.status(500).send({ error: 'An error occurred while fetching payment history' });
     }
-    // Fetch payment history
-    const result = await paymentHistoryCollection.find(query).sort(sort).toArray();
-    // Custom sort if the request is by employee ID
-    if (!slug.includes('@')) {
-      result.sort((a, b) =>{
-        // check if same year or not
-         if(a.year !== b.year){
-          return b.year - a.year;
-         };
-        //  sork by month
-         return monthMap[a.month] - monthMap[b.month];
-      })
-    }
-  //  
+  });
+
+  // 
+  app.get("/admin-stats",verifyToken,verifyAdmin, async(req,res)=>{
+      // 
+      const totalUsers= await usersCollection.estimatedDocumentCount();
+      // calculate total salary
+      const expenses = await paymentHistoryCollection.aggregate([
+        {
+         $group:{
+            _id:null,
+           expenses:{
+              $sum:"$salary" 
+            }
+         }
+        }
+     ]).toArray();
+
+     // Calculate total worked hours
+     const workedHoursData = await submitedWorkCollection.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalWorkedHours: {
+            $sum: "$workedHour",
+          },
+        },
+      },
+    ]).toArray();
+    // 
+     const totalExpenses = expenses[0].expenses || 0;
+     const totalWorkedHours = workedHoursData[0]?.totalWorkedHours || 0;
+     res.send({totalUsers, totalExpenses,totalWorkedHours })
+  })
+
+  //get all contact message from users colection
+  app.get('/contacts',verifyToken,verifyAdmin, async(req,res)=>{
+    const result = await contactMessageCollection.find().toArray();
     res.send(result);
-  } catch (error) {
-    res.status(500).send({ error: 'An error occurred while fetching payment history' });
-  }
-});
+  })
 
 
 
@@ -353,7 +393,12 @@ app.get('/payment-history/:slug',verifyToken, async (req, res) => {
       } 
     });
 
-
+  // contact message by users
+  app.post('/contact', async(req,res)=>{
+    const info = req.body;
+    const result = await contactMessageCollection.insertOne(info);
+    res.send(result);
+  })
 
 
 // ---------------- ALL UPDATE API HERE ------------------//
