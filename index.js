@@ -107,8 +107,6 @@ async function run() {
     const result = await usersCollection.find(filter).toArray();
     res.send(result)
   })
-  // 
-
     // all user data 
     app.get('/all-users/:email', async(req,res)=>{
       const email= req.params.email;
@@ -116,6 +114,16 @@ async function run() {
       const result = await usersCollection.findOne({userEmail:email});
       res.send(result)
     })
+    // 
+  app.get('/fired/:email', async(req,res)=>{
+    const email = req.params.email;
+    const query = {
+          userEmail:email,
+          fired:true,
+    }
+      const result = await usersCollection.findOne(query);
+      res.send({fired:result?.fired})
+  })
   // get specific employee work data
   app.get("/worksheet/:email", async (req,res)=>{
     const email = req.params.email;
