@@ -23,9 +23,8 @@ app.use(morgan('dev'));
 
 
 // middleware for user verify
-const verifyToken = (req,res, next)=>{
+const verifyToken = async(req,res, next)=>{
   const token = req?.cookies?.token;
-  console.log(token);
   // validate if token is not available
   if(!token){
     return res.status(401).json({message:'Access denied. No token provided.'})
@@ -42,6 +41,8 @@ const verifyToken = (req,res, next)=>{
   }
 
 }
+
+
 
 
 
@@ -69,14 +70,50 @@ async function run() {
      const paymentRequestsCollection = database.collection('payRequests');
      const paymentHistoryCollection = database.collection('paymentHistory')
 
+  // verify token for employee
+  const verifyEmployee = async(req,res, next)=>{
+    const verifiedEmail = req.user.email;
+    const query = {
+      userEmail:verifiedEmail,
+    }
+    const user = await usersCollection.findOne(query);
+    if(!user || user?.userRole !== "employee"){
+      return res.status(403).send('Forbidden Access')
+    }
+    next()
+  }
 
+   // verify token for employee
+   const verifyHr = async(req,res, next)=>{
+    const verifiedEmail = req.user.email;
+    const query = {
+      userEmail:verifiedEmail,
+    }
+    const user = await usersCollection.findOne(query);
+    if(!user || user?.userRole !== "hr"){
+      return res.status(403).send('Forbidden Access')
+    }
+    next()
+  }
 
+   // verify token for employee
+   const verifyAdmin = async(req,res, next)=>{
+    const verifiedEmail = req.user.email;
+    const query = {
+      userEmail:verifiedEmail,
+    }
+    const user = await usersCollection.findOne(query);
+    if(!user || user?.userRole !== "admin"){
+      return res.status(403).send('Forbidden Access')
+    }
+    next()
+  }
 
 
 // ---------------- ALL GET API HERE ------------------//
 
   // get the user roll
-  app.get('/user/role/:email', async(req,res)=>{
+  app.get('/user/role/:email',verifyToken, async(req,res)=>{
       const email = req.params.email;
       const query = {userEmail:email}
       const result = await usersCollection.findOne(query,{projection:{userRole:1,
@@ -85,13 +122,13 @@ async function run() {
       res.send(result?.userRole)
   })
   // get all employee data
-  app.get('/employee-list', async(req,res)=>{
+  app.get('/employee-list',verifyToken, verifyHr, async(req,res)=>{
     const filter ={userRole:"employee"};
     const result = await usersCollection.find(filter).toArray();
     res.send(result)
   })
-  // all user data except admin
-  app.get('/users', async(req,res)=>{
+  // all hr and verifed employee data except admin
+  app.get('/users',verifyToken,verifyAdmin, async(req,res)=>{
     // get data by different value
     const filter ={
       // matching
@@ -107,14 +144,18 @@ async function run() {
     const result = await usersCollection.find(filter).toArray();
     res.send(result)
   })
-    // all user data 
-    app.get('/all-users/:email', async(req,res)=>{
-      const email= req.params.email;
-      // 
-      const result = await usersCollection.findOne({userEmail:email});
-      res.send(result)
-    })
+  // all user data 
+  app.get('/all-users/:email',verifyToken, async(req,res)=>{
+    const email= req.params.email;
+    const verifiedEmail = req?.user?.email;
+    if(verifiedEmail !== email){
+     return res.status(403).send({message:"Forbidden Access"})
+    }
     // 
+    const result = await usersCollection.findOne({userEmail:email});
+    res.send(result)
+  })
+  // not verified for checking user on login is fired or not
   app.get('/fired/:email', async(req,res)=>{
     const email = req.params.email;
     const query = {
@@ -125,14 +166,14 @@ async function run() {
       res.send({fired:result?.fired})
   })
   // get specific employee work data
-  app.get("/worksheet/:email", async (req,res)=>{
+  app.get("/worksheet/:email",verifyToken,verifyEmployee, async (req,res)=>{
     const email = req.params.email;
     const filter ={employeeEmail:email};
     const result = await submitedWorkCollection.find(filter).toArray();
     res.send(result);
   })
   // get all employee submited work
-  app.get('/submited-work', async(req, res)=>{
+  app.get('/submited-work',verifyToken, verifyHr, async(req, res)=>{
       const queryData = req.query;
      const query = {};
     //  filtered by date
@@ -158,19 +199,16 @@ async function run() {
       res.send(result);
   } )
 
-
-  app.get("/payment-requests", async (req, res) => {
+// get all payment request on admin
+  app.get("/payment-requests",verifyToken,verifyAdmin, async (req, res) => {
     // 
      const result = await paymentRequestsCollection.find().toArray();
      res.send(result)
   });
   
  
-  
-
-  
-// get payment history by different slug
-app.get('/payment-history/:slug', async (req, res) => {
+// get payment history by different slug this get by hr and employee
+app.get('/payment-history/:slug',verifyToken, async (req, res) => {
   const monthMap = {
     January: 1,
     February: 2,
@@ -230,7 +268,7 @@ app.get('/payment-history/:slug', async (req, res) => {
 // ---------------- ALL POST API HERE ------------------//
 
   // employee work send to database by employee
-  app.post('/daily-work', async(req,res)=>{
+  app.post('/daily-work',verifyToken,verifyEmployee, async(req,res)=>{
     const submitedData = req.body;
     const query = {workedDate:submitedData?.workedDate, employeeEmail:submitedData?.employeeEmail}
     const isExist = await submitedWorkCollection.findOne(query);
@@ -252,7 +290,7 @@ app.get('/payment-history/:slug', async (req, res) => {
 
 
 //  pay request by hr
-  app.post('/payment/request', async (req, res) => { 
+  app.post('/payment/request',verifyToken, verifyHr, async (req, res) => { 
     // 
     try { 
     const { employeeId,employeeName, salary, month, year, hrEmail } = req.body; 
@@ -279,7 +317,7 @@ app.get('/payment-history/:slug', async (req, res) => {
       });
       
   //  pay approve by admin
-   app.post('/approve-pay-request', async (req, res) => { 
+   app.post('/approve-pay-request',verifyToken,verifyAdmin, async (req, res) => { 
       try { 
       const {paymentRequestId} = req.body; 
       const paymentRequest = await paymentRequestsCollection.findOne({ _id: new ObjectId(paymentRequestId)}); 
@@ -321,7 +359,7 @@ app.get('/payment-history/:slug', async (req, res) => {
 // ---------------- ALL UPDATE API HERE ------------------//
 
 // employee work update by own
-app.put('/worksheet/:id', async (req,res)=>{
+app.put('/worksheet/:id',verifyToken,verifyEmployee, async (req,res)=>{
   const id = req.params.id;
   const filter = {_id: new ObjectId(id)};
   const info = req.body;
@@ -340,8 +378,8 @@ app.put('/worksheet/:id', async (req,res)=>{
 
 })
 
-// employee verified status toggle by user
-app.patch('/employee-verify/:id', async(req,res)=>{
+// employee verified status toggle by hr
+app.patch('/employee-verify/:id',verifyToken,verifyHr, async(req,res)=>{
   const id = req.params.id;
   const query = {_id:new ObjectId(id)};
   const verified = {
@@ -353,8 +391,8 @@ app.patch('/employee-verify/:id', async(req,res)=>{
   res.send(result)
 })
 
-// employee fired by admin
-app.patch('/make-hr/:id', async(req,res)=>{
+// employee to hr by admin
+app.patch('/make-hr/:id',verifyToken,verifyAdmin, async(req,res)=>{
   const id= req.params.id;
   const query = {_id:new ObjectId(id)};
   const userRole = {userRole:"hr",_id:new ObjectId(id)}
@@ -372,7 +410,7 @@ app.patch('/make-hr/:id', async(req,res)=>{
 })
 
 // employee fired by admin
-app.patch('/fired/:id', async(req,res)=>{
+app.patch('/fired/:id',verifyToken,verifyAdmin, async(req,res)=>{
   const id= req.params.id;
   const query = {_id:new ObjectId(id)};
   const fired = {
@@ -382,7 +420,7 @@ app.patch('/fired/:id', async(req,res)=>{
   res.send(result)
 })
 // salary update by admin
-app.patch("/pay/salary-update", async(req,res)=>{
+app.patch("/pay/salary-update",verifyToken,verifyAdmin, async(req,res)=>{
     const {_id,currentSalary,newSalary} = req.body;
     if(newSalary <= currentSalary){
       return res.status(400).send({message:"New Salary will be bigger than current Value"})
@@ -401,7 +439,7 @@ app.patch("/pay/salary-update", async(req,res)=>{
 // ---------------- ALL DELETE API HERE ------------------//
 
 // employee work deleted by own
-app.delete('/worksheet/:id', async(req,res)=>{
+app.delete('/worksheet/:id',verifyToken,verifyEmployee, async(req,res)=>{
   const id = req.params.id;
   const query = {_id: new ObjectId(id) };
   const result = await submitedWorkCollection.deleteOne(query);
