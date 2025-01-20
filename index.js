@@ -207,62 +207,8 @@ async function run() {
       res.send(result)
     });
     
-  
-  // get payment history by different slug this get by hr and employee
-  app.get('/payment-history/:slug',verifyToken, async (req, res) => {
-    const monthMap = {
-      January: 1,
-      February: 2,
-      March: 3,
-      April: 4,
-      May: 5,
-      June: 6,
-      July: 7,
-      August: 8,
-      September: 9,
-      October: 10,
-      November: 11,
-      December: 12,
-    };
 
-    try {
-      const slug = req.params.slug;
-      let query = {};
-      // Default sort: descending by _id
-      let sort = { _id:-1 };
-
-      // Check if slug contains email
-      if (slug.includes('@')) {
-        const user = await usersCollection.findOne({ userEmail: slug });
-        if (!user) {
-          return res.status(404).send({ error: 'User not found by email' });
-        }
-        query.employeeId = user._id.toString();
-      } else {
-        query.employeeId = slug;
-        sort = {}; 
-      }
-      // Fetch payment history
-      const result = await paymentHistoryCollection.find(query).sort(sort).toArray();
-      // Custom sort if the request is by employee ID
-      if (!slug.includes('@')) {
-        result.sort((a, b) =>{
-          // check if same year or not
-          if(a.year !== b.year){
-            return b.year - a.year;
-          };
-          //  sork by month
-          return monthMap[a.month] - monthMap[b.month];
-        })
-      }
-    //  
-      res.send(result);
-    } catch (error) {
-      res.status(500).send({ error: 'An error occurred while fetching payment history' });
-    }
-  });
-
-  // 
+  // admin state
   app.get("/admin-stats",verifyToken,verifyAdmin, async(req,res)=>{
       // 
       const totalUsers= await usersCollection.estimatedDocumentCount();
@@ -301,7 +247,86 @@ async function run() {
     res.send(result);
   })
 
+  // get payment history by different slug this get by hr and employee with pagination
+  app.get('/payment-history/:slug',verifyToken, async (req, res) => {
+    const monthMap = {
+      January: 1,
+      February: 2,
+      March: 3,
+      April: 4,
+      May: 5,
+      June: 6,
+      July: 7,
+      August: 8,
+      September: 9,
+      October: 10,
+      November: 11,
+      December: 12,
+    };
+  // 
+    try {
+      const { slug } = req.params;
+      const { page=1 , limit=5  } = req.query; // Default to page 1, limit 5
+      const skip = (page - 1) * limit; // Calculate the number of documents to skip
+      // 
+      let query = {};
+      let sort = { _id: -1 }; // Default sort: descending by _id
+    
+      // Check if slug contains an email
+      if (slug.includes('@')) {
+        const user = await usersCollection.findOne({ userEmail: slug });
+        if (!user) {
+          return res.status(404).send({ error: 'User not found by email' });
+        }
+        query.employeeId = user._id.toString();
 
+      
+      } else {
+        query.employeeId = slug;
+        sort = {}; 
+      }
+
+      // to hr
+      const payments = await paymentHistoryCollection
+        .find(query)
+        .sort(sort)
+        .toArray();
+
+
+        // Fetch payment history with pagination
+        const totalRecords = await paymentHistoryCollection.countDocuments(query);
+        //to employee
+        const paymentsInfo = await paymentHistoryCollection
+        .find(query)
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .toArray();
+
+      // Custom sorting if the request is by employee ID
+      if (!slug.includes('@')) {
+        payments.sort((a, b) => {
+          // Check if the year is the same
+          if (a.year !== b.year) {
+            return b.year - a.year;
+          }
+          // Sort by month
+          return monthMap[b.month] - monthMap[a.month];
+        });
+      }
+
+
+      res.send({
+        paymentsInfo,
+        payments,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalRecords / limit),
+        totalRecords,
+      });
+    } catch (error) {
+      res.status(500).send({ error: 'An error occurred while fetching payment history' });
+    }
+  });
 
 
 
