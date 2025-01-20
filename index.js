@@ -114,7 +114,7 @@ async function run() {
 // ---------------- ALL GET API HERE ------------------//
 
   // get the user roll
-  app.get('/user/role/:email',verifyToken, async(req,res)=>{
+  app.get('/user/role/:email', async(req,res)=>{
       const email = req.params.email;
       const query = {userEmail:email}
       const result = await usersCollection.findOne(query,{projection:{userRole:1,
@@ -263,7 +263,7 @@ async function run() {
   });
 
   // 
-  app.get("/admin-stats",verifyToken, async(req,res)=>{
+  app.get("/admin-stats",verifyToken,verifyAdmin, async(req,res)=>{
       // 
       const totalUsers= await usersCollection.estimatedDocumentCount();
       // calculate total salary
@@ -296,7 +296,7 @@ async function run() {
   })
 
   //get all contact message from users colection
-  app.get('/contacts',verifyToken, async(req,res)=>{
+  app.get('/contacts',verifyToken,verifyAdmin, async(req,res)=>{
     const result = await contactMessageCollection.find().toArray();
     res.send(result);
   })
