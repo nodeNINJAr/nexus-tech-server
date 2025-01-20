@@ -12,7 +12,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET);
 // middleware
 app.use(cors(
   { 
-    origin:['http://localhost:5173','https://nexustech-b3673.web.app','https://nexustech-b3673.firebaseapp.com'],
+    origin:['http://localhost:5173','https://nexustech-b3673.web.app','https://nexustech-b3673.firebaseapp.com','https://nexustechweb.netlify.app'],
     credentials:true,
    }
 ));
@@ -354,8 +354,8 @@ async function run() {
   })
 
 
-//  pay request by hr
-  app.post('/payment/request',verifyToken, verifyHr, async (req, res) => { 
+  //  pay request by hr
+   app.post('/payment/request',verifyToken, verifyHr, async (req, res) => { 
     // 
     try { 
     const { employeeId,employeeName, salary, month, year, hrEmail } = req.body; 
