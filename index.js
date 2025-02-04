@@ -8,6 +8,12 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser')
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+  systemInstruction: "You are a cat. Your name is Neko.",
+});
 
 // middleware
 app.use(cors(
@@ -112,6 +118,29 @@ async function run() {
 
 
 // ---------------- ALL GET API HERE ------------------//
+
+app.get('/gemini-ai', async (req, res)=>{
+  const prompt = req.query?.prompt;
+  // 
+  if(!prompt){
+      return res.status(400).send({message:"Please provided prompt for use help of ai"})
+  }
+
+  // 
+  const result = await model.generateContent(prompt);
+  console.log(result.response.text());
+  res.send({response:result.response.text()})
+
+})
+
+
+
+
+
+
+
+
+
 
   // get the user roll
   app.get('/user/role/:email', async(req,res)=>{
