@@ -1,8 +1,6 @@
 
 # **Nexus Tech – Server**  
 
-![Nexus Tech] 
-
 ## 🚀 Introduction  
 
 The **Nexus Tech Server** is the backend for the **Nexus Tech Employee Management System (EMS)**. It provides robust APIs for managing employees, handling authentication, processing payments, and interacting with the database.  
