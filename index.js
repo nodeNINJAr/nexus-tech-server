@@ -50,8 +50,6 @@ const verifyToken = async(req,res, next)=>{
 
 
 
-
-
 // mongo db uri
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pm9ea.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -152,10 +150,31 @@ app.get('/gemini-ai', async (req, res)=>{
       res.send(result?.userRole)
   })
   // get all employee data
-  app.get('/employee-list',verifyToken, verifyHr, async(req,res)=>{
+  app.get('/employee-list',verifyToken,  async(req,res)=>{
     const filter ={userRole:"employee"};
-    const result = await usersCollection.find(filter).toArray();
-    res.send(result)
+    const totalEmployee = await usersCollection.find(filter).toArray();
+    //  
+   const employeeCount = await usersCollection.aggregate([
+      {
+        $match:filter,
+      },
+      {
+        $group:{
+          _id:'$designation',
+          count:{$sum:1},
+        }
+      },
+      {
+        $project:{
+          _id:0,
+          designation:'$_id',
+          count:1,
+        }
+      }
+      
+   ]).toArray();
+
+    res.send({employeeCount,totalEmployee})
   })
   // all hr and verifed employee data except admin
   app.get('/users',verifyToken,verifyAdmin, async(req,res)=>{
@@ -272,7 +291,8 @@ app.get('/gemini-ai', async (req, res)=>{
 
   //get all contact message from users colection
   app.get('/contacts',verifyToken,verifyAdmin, async(req,res)=>{
-    const result = await contactMessageCollection.find().toArray();
+    const skip = parseInt(req?.query?.size);
+    const result = await contactMessageCollection.find().skip(skip).limit(5).sort({_id:-1}).toArray();
     res.send(result);
   })
 
@@ -357,6 +377,48 @@ app.get('/gemini-ai', async (req, res)=>{
     }
   });
 
+  // salary-request-summary
+  app.get('/salary-request-summary',verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const salaryRequestData = await paymentRequestsCollection.aggregate([
+        {
+          $group: {
+            _id: { month: "$month", year: "$year" },
+            receivedSalary: {
+              $sum: {
+                $cond: [{ $eq: ["$status", "approved"] }, 1, 0], 
+              },
+            },
+            notReceivedSalary: {
+              $sum: {
+                $cond: [
+                  { $in: ["$status", ["pending", "rejected"]] },
+                  1,
+                  0,
+                ],
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0, // Exclude the default _id field
+            name: { $concat: ["$_id.month", " ", { $toString: "$_id.year" }] },
+            receivedSalary: 1,
+            notReceivedSalary: 1,
+          },
+        },
+        {
+          $sort: { "_id.year": 1, "_id.month": 1 }, 
+        },
+      ]).toArray();
+  
+      res.send(salaryRequestData);
+    } catch (error) {
+      console.error("Error fetching salary request summary:", error);
+      res.status(500).send("Internal Server Error");
+    }
+  });
 
 
 // ---------------- ALL POST API HERE ------------------//
@@ -545,7 +607,12 @@ app.delete('/worksheet/:id',verifyToken,verifyEmployee, async(req,res)=>{
   res.send(result)
 })
 
-
+app.delete('/contact/:id',verifyToken, verifyAdmin, async(req,res)=>{
+   const id = req?.params?.id;
+   const query = {_id: new ObjectId(id)};
+   const result = await contactMessageCollection.deleteOne(query);
+   res.send(result)
+})
 
 
     
